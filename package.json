@@ -8,5 +8,13 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "crypto-js": "^4.1.1",
+    "dotenv-swarm": "^1.0.1",
+    "esm": "^3.2.25",
+    "jwt-simple-auth": "^1.0.3",
+    "uuid": "^9.0.0",
+    "ws": "^8.11.0"
+  }
 }
