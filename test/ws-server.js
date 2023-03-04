@@ -1,4 +1,6 @@
 import { httpServer } from '../lib/wss-server'
+import { gsAdapter } from '../lib/gs-msg-adapter'
+
 const dapi = {
 
 }
@@ -18,7 +20,7 @@ const wss = httpServer({
     pem: './certs/test-server.pem',
     pub: './certs/test-server.pub'
   }
-})
+}, gsAdapter)
 
 async function deviceAuth({ ws, cid, devID, dapi, data }) {
   console.log('cid', cid, devID, data)
@@ -40,10 +42,12 @@ async function deviceAuth({ ws, cid, devID, dapi, data }) {
 }
 
 async function loginHandler({ ws, cid, devID, dapi, data, jwtAuth }) {
-  const { requestId } = data
+  const { requestId, scriptData } = data
+  const { email, password } = scriptData
+  console.log('logon handler received', email, password)
 
   const payload = {
-    email: 'dave@bluntworks.net',
+    email,
     role: 'admin'
   }
 
@@ -54,36 +58,44 @@ async function loginHandler({ ws, cid, devID, dapi, data, jwtAuth }) {
   return {
     '@class': '.AuthenticationResponse',
     requestId,
-    ok: true,
-    authToken
+    scriptData: {
+      ok: true,
+      authToken
+    }
   }
-
-
 }
 
 const eventHandlers = {
-  test: ({ ws, dapi, data }) => {
-    console.log('test', data)
+  TEST_MSG: ({ ws, dapi, data }) => {
+    const { msg } = data && data.scriptData
     return {
       '@class': '.LogEventResponse',
       requestId: data.requestId,
-      data: {
-        test: 'ok'
+      scriptData: {
+        test: 'ok',
+        msg
       }
     }
   }
 }
 
 async function eventHandler({ ws, cid, devID, dapi, data, jwtAuth }) {
-  const verified = await jwtAuth.verifyToken(data.authToken, 'access')
-  console.log('verified', verified)
+  try { 
+    const verified = await jwtAuth.verifyToken(data.authToken, 'access')
+    console.log('verified', verified)
+    console.log('event handler', data)
 
-  console.log('event handler', data)
+    const resp = eventHandlers[data.eventKey]
+      ? await eventHandlers[data.eventKey]({ ws, dapi, data })
+      : null
 
-  const resp = eventHandlers[data.eventKey]
-    ? await eventHandlers[data.eventKey]({ ws, dapi, data })
-    : null
-
-  return resp
+    return resp
+  } catch(err) {
+    return {
+      '@class': '.LogEventResponse',
+      requestId: data.requestId,
+      error: { message: err.message }
+    }
+  }
 }
 
